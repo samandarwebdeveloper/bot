@@ -1,0 +1,15 @@
+[
+    {
+        "login": "📲 Botdan ro'yxatdan o'tish uchun quyidagi tugma orqali telefon raqamingizni yuboring:",
+        "restart": "Botga qayta kirdingiz",
+        "follow": "Botdan to'liq foydalanish uchun quyidagi kanallarga obuna bo'ling!",
+        "sign": "✅ Telefon raqamingiz qabul qilindi: ",
+        "menu": "🖥 Asosiy menyudasiz.",
+        "pay": "Quyidagi to'lov tizimlaridan birini tanlang:",
+        "ref": "🔗 Sizning taklif havolangiz:",
+        "money": 2000,
+        "minimalMoney": 40000,
+        "help": "Murojatingiz uchun raxmat tez orada sizga yordam beramiz",
+        "bonus": "@bos66_bonus"
+    }
+]

@@ -129,7 +129,7 @@ function auth(id) {
                     }
                 })
             }
-            return true
+            return menu(id)
         } 
         if(unFollowedChannel.length > 0) {
             const keyboard = []

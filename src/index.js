@@ -17,33 +17,20 @@ const {channels} = require('./model/channel')
 
 // db.close();
 
-// const stmt = db.prepare("INSERT INTO keyboards VALUES (?)");
-//     //stmt.run(`📚 Qo'llanma`);
-//     stmt.finalize();
-
-// db.each("SELECT * FROM keyboards", (err, row) => {
-//     console.log(row.text);
-// });
-
-// db.run("DELETE FROM keyboards WHERE text=(?)", `📚 Qo'llanma`, function(err) {
-//     if(err){
-//         console.log(err)
-//     }
-//     else{
-//         console.log("Successful");
-//     }
-//     db.close();
-// });
-
 
 const bot = new TelegramBot(Token, {
     polling: true
 })
 
+bot.on("polling_error", (msg) => console.log(msg))
+
 const botUserName = 'Gold_Pay_Bot'
 const adminId = 238830786
 let chatStep = []
 let adminChatStep = []
+const usersChannelId = -1001698134739
+const paymentChannelId = -1001636276579
+let sender
 
 
 bot.onText(/\/start/, (msg) => {
@@ -73,7 +60,6 @@ bot.onText(/\/start/, (msg) => {
 })
 
 
-bot.on("polling_error", (msg) => console.log(msg))
 
 function login(id) {
     bot.sendMessage(id, texts.login,  {
@@ -104,7 +90,9 @@ function auth(id) {
                 return followedChannel.push(channels[i])
             }
             unFollowedChannel.push(channels[i])
-        }).catch(err => console.log(err))
+        }).catch(err => {
+            unFollowedChannel.push(channels[i])
+        })
     }
     
     setTimeout(() => {
@@ -141,7 +129,7 @@ function auth(id) {
                     }
                 })
             }
-            return menu(id)
+            return true
         } 
         if(unFollowedChannel.length > 0) {
             const keyboard = []
@@ -192,6 +180,8 @@ bot.on('contact', (msg) => {
     const username = msg.chat.username
     const phoneNumber = msg.contact.phone_number
 
+
+    bot.sendMessage(usersChannelId, `✅ Yangi foydalanuvchi \n\n${msg.chat.first_name} \n\nID: ${chatId} \nTel: ${phoneNumber} ${username ? `\n@` + username : ''}`)
     db.run(`INSERT INTO users (id, phone, username) VALUES (?, ?, ?)`, chatId, phoneNumber, username)
     bot.sendMessage(msg.chat.id, texts.sign, {
         reply_markup: {
@@ -205,6 +195,8 @@ bot.on('callback_query', query => {
     const chatId = query.message.chat.id
     const messageId = query.message.message_id
     const data = query.data
+
+    const user = chatStep.find(item => item.chatId === chatId)
 
     if (data === 'auth') {
         auth(chatId)
@@ -221,6 +213,15 @@ bot.on('callback_query', query => {
                         bot.sendMessage(chatId, `<b>💵 Hisobingiz:</b> ${row.balance || 0} so'm \n<b>💳 Minimal pul yechish miqdori: </b>${texts.minimalMoney} so'm`, {
                             parse_mode: 'HTML'
                         })
+                    } else {
+                        user.cashMoneyCard = 1
+                        bot.sendMessage(chatId, `💵 Balansingiz: ${row.balance || 0} \nYechib olmoqchi bo'lgan summani kiriting`, {
+                            reply_markup: {
+                                keyboard: [
+                                    ['❌ Bekor qilish']
+                                ]
+                            }
+                        })
                     }
                 }
             }
@@ -236,6 +237,15 @@ bot.on('callback_query', query => {
                     if(row.balance < texts.minimalMoney) {
                         bot.sendMessage(chatId, `<b>💵 Hisobingiz:</b> ${row.balance || 0} so'm \n<b>💳 Minimal pul yechish miqdori: </b>${texts.minimalMoney} so'm`, {
                             parse_mode: 'HTML'
+                        })
+                    } else {
+                        user.cashMoneyNumber = 1
+                        bot.sendMessage(chatId, `💵 Balansingiz: ${row.balance || 0} \nYechib olmoqchi bo'lgan summani kiriting`, {
+                            reply_markup: {
+                                keyboard: [
+                                    ['❌ Bekor qilish']
+                                ]
+                            }
                         })
                     }
                 }
@@ -326,6 +336,17 @@ bot.on('callback_query', query => {
             }
         })
     }
+    if (data === 'send-answer') {
+        sender = chatStep.find(user => user.sendAnswer === 1) 
+        sender.sendAnswer = 2
+        bot.sendMessage(chatId, `Xabarni kiriting...`, {
+            reply_markup: {
+                keyboard: [
+                    ['🔙 Orqaga']
+                ]
+            }
+        })
+    }
 })
 
 
@@ -337,7 +358,7 @@ bot.on('message', msg => {
     chatStep.push({
         chatId
     })
-
+    
     if(chatId === adminId) {
         adminChatStep.push({
             chatId
@@ -348,8 +369,7 @@ bot.on('message', msg => {
     const admin = adminChatStep.find(item => item.chatId === chatId)
 
     if (text === '💰 Pul ishlash') {
-
-        bot.sendMessage(chatId, `🔗 Sizning taklif havolangiz: \nhttps://t.me/${botUserName}?start=${chatId}
+        return bot.sendMessage(chatId, `🔗 Sizning taklif havolangiz: \nhttps://t.me/${botUserName}?start=${chatId}
         \nYuqoridagi taklif havolangizni do'stlaringizga tarqating va har bir to'liq ro'yxatdan o'tgan taklifingiz uchun ${texts.money} so'm hisobingizga qo'shiladi.`, {
             parse_mode: 'HTML',
             reply_markup: {
@@ -389,6 +409,7 @@ bot.on('message', msg => {
                 }
             })
         }, 200)
+        return
     }
     if (text === '💳 Pul yechish') {
         bot.sendMessage(chatId, `<b>Quyidagi to'lov tizimlaridan birini tanlang:</b>`, {
@@ -408,6 +429,7 @@ bot.on('message', msg => {
             },
             parse_mode: 'HTML'
         })
+        return
     }
     if (text === '📨 Yordam') {
         userStep.step = 1
@@ -420,15 +442,30 @@ bot.on('message', msg => {
             },
             parse_mode: 'HTML'
         })
+        return
     }
     if (text !== '📨 Yordam' && text !== '◀️ Orqaga' && userStep.step === 1) {
         userStep.step = 0
+        userStep.sendAnswer = 1
         bot.sendMessage(chatId, texts.help)
-        bot.sendMessage(adminId, text)
+        bot.sendMessage(adminId, `Jo'natuvchi ${msg.chat.first_name} \n\nXabar: \n${text}`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: 'Javob yozish',
+                            callback_data: 'send-answer'
+                        }
+                    ]
+                ]
+            }
+        })
+        return
     }
     if (text === '◀️ Orqaga') {
         userStep.step = 0
         menu(chatId)
+        return
     }
     if (text === `📚 Qo'llanma`) {
         bot.sendMessage(chatId, `<b>📚 Quyidagilardan birini tanlang:</b>`, {
@@ -449,7 +486,126 @@ bot.on('message', msg => {
                 resize_keyboard: true,
             }
         })
+        return
     } 
+
+    if (text === '❌ Bekor qilish') {
+        userStep.summa = 0
+        userStep.cashMoneyCard = 0
+        userStep.cashMoneyNumber = 0
+        return menu(chatId)
+    }
+
+    if (text !== '❌ Bekor qilish' && userStep.cashMoneyCard === 1) {
+        db.get(`SELECT * FROM users WHERE id = "${chatId}"`, (err, row) => {
+            if (err) {
+                console.log(err)
+            } else {
+                if (row) {
+                    if (+text > row.balance) {
+                        bot.sendMessage(chatId, `<b>❌ Balansingizda buncha pul mablag'i mavjud emas</b>`, {
+                            parse_mode: 'HTML'
+                        })
+                    } else {
+                        userStep.summa = +text
+                        userStep.cashMoneyCard = 2
+                        bot.sendMessage(chatId, `💳 Karta raqamingizni kiriting. Masalan: 8600 0000 1234 5678`, {
+                            reply_markup: {
+                                keyboard: [
+                                    ['❌ Bekor qilish']
+                                ]
+                            }
+                        })
+                    }
+                }
+            }
+        })
+    }
+
+    if (text !== '❌ Bekor qilish' && userStep.cashMoneyNumber === 1) {
+        db.get(`SELECT * FROM users WHERE id = "${chatId}"`, (err, row) => {
+            if (err) {
+                console.log(err)
+            } else {
+                if (row) {
+                    if (+text > row.balance) {
+                        bot.sendMessage(chatId, `<b>❌ Balansingizda buncha pul mablag'i mavjud emas</b>`, {
+                            parse_mode: 'HTML'
+                        })
+                    } else {
+                        userStep.summa = +text
+                        userStep.cashMoneyNumber = 2
+                        bot.sendMessage(chatId, `📞 Telefon raqamingizni kiriting. Masalan: +998901234567`, {
+                            reply_markup: {
+                                keyboard: [
+                                    ['❌ Bekor qilish']
+                                ]
+                            }
+                        })
+                    }
+                }
+            }
+        })
+    }
+
+    if (text !== '❌ Bekor qilish' && userStep.cashMoneyCard === 2 && text !== userStep.summa) {
+        if (text.split('').length !== 19) {
+            return bot.sendMessage(chatId, `💳 Karta raqamini quyidagi formatda kiriting. Masalan: 8600 0000 1234 5678`)
+        }
+        db.get(`SELECT * FROM users WHERE id = "${chatId}"`, (err, row) => {
+            if (err) {
+                console.log(err)
+            } else {
+                if (row) {
+                    let data = [row.balance - userStep.summa, row.cash_money ? row.cash_money + userStep.summa : userStep.summa, chatId]
+                    db.run(`UPDATE users SET balance = ?, cash_money = ? WHERE id = ?`, data, function(err) {
+                        if (err) {
+                            return console.error(err);
+                        }
+                    })
+                    userStep.summa = 0
+                }
+            }
+        })
+        userStep.cashMoneyCard = 0
+        bot.sendMessage(chatId, `💰 Balansingizdan pul yechildi 2 soat ichida sizga pul tashlab beriladi`, {
+            reply_markup: {
+                remove_keyboard: true
+            }
+        })
+        bot.sendMessage(paymentChannelId, `💳 Kartaga pul yechish \n\n${msg.chat.first_name} \nKarta raqami: ${text} \nSumma: ${userStep.summa}`)
+        return menu(chatId)
+    }
+
+    if (text !== '❌ Bekor qilish' && userStep.cashMoneyNumber === 2 && text !== userStep.summa) {
+        if (text.split('').length !== 13) {
+            return bot.sendMessage(chatId, `📞 Telefon raqamingizni quyidagi formatda kiriting. Masalan: +998901234567`)
+        }
+        db.get(`SELECT * FROM users WHERE id = "${chatId}"`, (err, row) => {
+            if (err) {
+                console.log(err)
+            } else {
+                if (row) {
+                    let data = [row.balance - userStep.summa, row.cash_money ? row.cash_money + userStep.summa : userStep.summa, chatId]
+                    db.run(`UPDATE users SET balance = ?, cash_money = ? WHERE id = ?`, data, function(err) {
+                        if (err) {
+                            return console.error(err.message);
+                        }
+                    })
+                    userStep.summa = 0
+                }
+            }
+        })
+        userStep.cashMoneyNumber = 0
+        bot.sendMessage(chatId, `💰 Balansingizdan pul yechildi 2 soat ichida sizga pul tashlab beriladi`, {
+            reply_markup: {
+                remove_keyboard: true
+            }
+        })
+        bot.sendMessage(paymentChannelId, `📞 Telefon raqamiga pul yechish \n\n${msg.chat.first_name} \nTelefon raqami: ${text} \nSumma: ${userStep.summa}`)
+        return menu(chatId)
+    }
+    
     
     if (text === '🤖 Admin panel' && chatId === adminId) {
         bot.sendMessage(chatId, `<b>Quyidagilardan birini tanlang:</b>`, {
@@ -476,13 +632,20 @@ bot.on('message', msg => {
                 resize_keyboard: true,
             }
         })
+        return
+    }
+
+    if (text !== '🔙 Orqaga' && sender?.sendAnswer === 2) {
+        bot.sendMessage(sender.chatId, text)
+        bot.sendMessage(adminId, 'Xabar yuborildi')
+        sender = {}
     }
 
     if (admin) {
         const jsonText = read(path.resolve(__dirname, '/text/texts.json'))
         const oldText = jsonText[0]
         if (text === '🔙 Orqaga') {
-            menu(chatId)
+            return menu(chatId)
         }
         if (text !== '🔙 Orqaga' && admin.step === 1) {
             const money = [
@@ -504,6 +667,7 @@ bot.on('message', msg => {
             write(path.resolve(__dirname, '/text/texts.json'), money)
             admin.step = 0
             bot.sendMessage(chatId, `Summa ${text} so'mga o'zgartirildi`)
+            return
         }
         if (text !== '🔙 Orqaga' && admin.step === 2) {
             const money = [
@@ -525,6 +689,7 @@ bot.on('message', msg => {
             write(path.resolve(__dirname, '/text/texts.json'), money)
             admin.step = 0
             bot.sendMessage(chatId, `Minimsl summa ${text} so'mga o'zgartirildi`)
+            return
         }
     }
 })

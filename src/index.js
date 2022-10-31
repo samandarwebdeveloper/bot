@@ -29,7 +29,7 @@ const adminId = 238830786
 let chatStep = []
 let adminChatStep = []
 const usersChannelId = -1001698134739
-const paymentChannelId = -1001636276579
+const paymentChannelId = -1001819660769
 let sender
 
 
@@ -692,7 +692,7 @@ bot.on('message', msg => {
 
             write(path.resolve(__dirname, '/text/texts.json'), money)
             admin.step = 0
-            bot.sendMessage(chatId, `Minimsl summa ${text} so'mga o'zgartirildi`)
+            bot.sendMessage(chatId, `Minimal summa ${text} so'mga o'zgartirildi`)
             return
         }
     }

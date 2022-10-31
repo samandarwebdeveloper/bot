@@ -668,21 +668,6 @@ bot.on('message', msg => {
                 }
             ]
 
-            texts = [
-                {
-                    login: oldText.login,
-                    restart: oldText.restart,
-                    follow: oldText.follow,
-                    sign: oldText.sign,
-                    menu: oldText.menu,
-                    pay: oldText.pay,
-                    ref: oldText.ref,
-                    money: +text,
-                    minimalMoney: oldText.minimalMoney,
-                    help: oldText.help,
-                    bonus: oldText.bonus
-                }
-            ]
             write(path.resolve(__dirname, '/text/texts.json'), money)
             admin.step = 0
             bot.sendMessage(chatId, `Summa ${text} so'mga o'zgartirildi`)
@@ -705,21 +690,6 @@ bot.on('message', msg => {
                 }
             ]
 
-            texts = [
-                {
-                    login: oldText.login,
-                    restart: oldText.restart,
-                    follow: oldText.follow,
-                    sign: oldText.sign,
-                    menu: oldText.menu,
-                    pay: oldText.pay,
-                    ref: oldText.ref,
-                    money: oldText.money,
-                    minimalMoney: +text,
-                    help: oldText.help,
-                    bonus: oldText.bonus
-                }
-            ]
             write(path.resolve(__dirname, '/text/texts.json'), money)
             admin.step = 0
             bot.sendMessage(chatId, `Minimal summa ${text} so'mga o'zgartirildi`)

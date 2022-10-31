@@ -563,7 +563,6 @@ bot.on('message', msg => {
                             return console.error(err);
                         }
                     })
-                    userStep.summa = 0
                 }
             }
         })
@@ -574,6 +573,9 @@ bot.on('message', msg => {
             }
         })
         bot.sendMessage(paymentChannelId, `💳 Kartaga pul yechish \n\n${msg.chat.first_name} \nKarta raqami: ${text} \nSumma: ${userStep.summa}`)
+        setTimeout(() => {
+            userStep.summa = 0
+        }, 500)
         return menu(chatId)
     }
 
@@ -592,7 +594,6 @@ bot.on('message', msg => {
                             return console.error(err.message);
                         }
                     })
-                    userStep.summa = 0
                 }
             }
         })
@@ -603,6 +604,9 @@ bot.on('message', msg => {
             }
         })
         bot.sendMessage(paymentChannelId, `📞 Telefon raqamiga pul yechish \n\n${msg.chat.first_name} \nTelefon raqami: ${text} \nSumma: ${userStep.summa}`)
+        setTimeout(() => {
+            userStep.summa = 0
+        }, 500)
         return menu(chatId)
     }
     

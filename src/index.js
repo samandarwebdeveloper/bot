@@ -24,7 +24,7 @@ const bot = new TelegramBot(Token, {
 
 bot.on("polling_error", (msg) => console.log(msg))
 
-const botUserName = 'samandarning_test_bot'
+const botUserName = 'Gold_Pay_Bot'
 const adminId = 238830786
 let chatStep = []
 let adminChatStep = []

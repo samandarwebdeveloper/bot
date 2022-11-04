@@ -12,7 +12,7 @@ const {channels} = require('./model/channel')
 //     db.run("CREATE TABLE users (id INTEGER NOT NULL, phone INTEGER NOT NULL, username TEXT, balance INTEGER, cash_money INTEGER)");
 //     db.run(`CREATE TABLE invited_users (id INTEGER NOT NULL, ref_user_id INTEGER NOT NULL)`)
 // // //     // db.run("CREATE TABLE keyboards (text TEXT NOT NULL)");
-//         // db.run("DROP TABLE users")
+//         // db.run("DROP TABLE invited_users")
 // });
 
 // db.close();
@@ -24,12 +24,12 @@ const bot = new TelegramBot(Token, {
 
 bot.on("polling_error", (msg) => console.log(msg))
 
-const botUserName = 'Gold_Pay_Bot'
+const botUserName = 'samandarning_test_bot'
 const adminId = 238830786
 let chatStep = []
 let adminChatStep = []
 const usersChannelId = -1001698134739
-const paymentChannelId = -1001819660769
+const paymentChannelId = -1001636276579
 let sender
 
 
@@ -54,7 +54,9 @@ bot.onText(/\/start/, (msg) => {
             if (!row) {
                 return login(chatId)
             }
-            auth(chatId)
+            auth(chatId).then(data => {
+                menu(data)
+            }).catch(err => console.log(err))
         }
     })
 })
@@ -77,8 +79,7 @@ function login(id) {
     })
 }
 
-
-function auth(id) {
+const auth = (id) => new Promise((resolve, reject) => {
     let followedChannel = []
     let unFollowedChannel = []
 
@@ -100,27 +101,28 @@ function auth(id) {
             if(user.ref_user_id) {
                 db.get(`SELECT * FROM users WHERE id = "${id}"`, (err, row) => {
                     if(err) {
-                        return console.log(err)
+                        return reject(err)
                     }
                     if(row) {
                         return
                     }
                 })
+                db.finalize()
                 db.get(`SELECT * FROM invited_users WHERE id = "${id}"`, (err, row) => {
                     if (err) {
-                        console.log(err)
+                        reject(err)
                     } else {
                         if (!row) {
                             if(id !== user.ref_user_id) {
                                 db.run(`INSERT INTO invited_users (id, ref_user_id) VALUES (?, ?)`, id, user.ref_user_id,)
                                 db.get(`SELECT * FROM users WHERE id = "${user.ref_user_id}"`, (err, row) => {
                                     if (err) {
-                                        return console.log(err)
+                                        return reject(err)
                                     }
                                     let data = [row.balance ? row.balance + texts.money : texts.money, user.ref_user_id]
                                     db.run(`UPDATE users SET balance = ? WHERE id = ?`, data, function(err) {
                                         if (err) {
-                                            return console.error(err.message);
+                                            return reject(err.message);
                                         }
                                     })
                                 })
@@ -129,7 +131,7 @@ function auth(id) {
                     }
                 })
             }
-            menu(id)
+            resolve(id)
         } 
         if(unFollowedChannel.length > 0) {
             const keyboard = []
@@ -149,7 +151,7 @@ function auth(id) {
         followedChannel = []
         unFollowedChannel = []
     }, 500)
-}
+})
 
 function menu(id) {
     let keyboard = []
@@ -180,6 +182,13 @@ bot.on('contact', (msg) => {
     const username = msg.chat.username
     const phoneNumber = msg.contact.phone_number
 
+    if(phoneNumber.slice(0, 3) !== '998') {
+        return bot.sendMessage(chatId, `Botda faqat o'zbek raqamlaridan ro'yxatdan o'tish mumkun!`, {
+            reply_markup: {
+                remove_keyboard: true
+            }
+        })
+    }
 
     bot.sendMessage(usersChannelId, `✅ Yangi foydalanuvchi \n\n${msg.chat.first_name} \n\nID: ${chatId} \nTel: ${phoneNumber} ${username ? `\n@` + username : ''}`)
     db.run(`INSERT INTO users (id, phone, username) VALUES (?, ?, ?)`, chatId, phoneNumber, username)
@@ -188,7 +197,7 @@ bot.on('contact', (msg) => {
             remove_keyboard: true
         }
     })
-    auth(chatId)
+    auth(chatId, true)
 })
 
 bot.on('callback_query', query => {
@@ -199,7 +208,7 @@ bot.on('callback_query', query => {
     const user = chatStep.find(item => item.chatId === chatId)
 
     if (data === 'auth') {
-        auth(chatId)
+        auth(chatId).then(data => menu(data)).catch(err => console.log(err))
         bot.deleteMessage(chatId, messageId)
     }
 
@@ -351,7 +360,7 @@ bot.on('callback_query', query => {
 
 
 
-bot.on('message', msg => {
+bot.on('message', async msg => {
     const chatId = msg.chat.id
     const text = msg.text
 
@@ -412,24 +421,27 @@ bot.on('message', msg => {
         return
     }
     if (text === '💳 Pul yechish') {
-        bot.sendMessage(chatId, `<b>Quyidagi to'lov tizimlaridan birini tanlang:</b>`, {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: `💳 Kartaga`,
-                            callback_data: 'card'
-                        },
-                        {
-                            text: `📲 Raqamga`,
-                            callback_data: 'number'
-                        }
-                    ]
-                ]
-            },
-            parse_mode: 'HTML'
-        })
-        return
+        auth(chatId).then(data => {
+            if (data) {
+                bot.sendMessage(chatId, `<b>Quyidagi to'lov tizimlaridan birini tanlang:</b>`, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: `💳 Kartaga`,
+                                    callback_data: 'card'
+                                },
+                                {
+                                    text: `📲 Raqamga`,
+                                    callback_data: 'number'
+                                }
+                            ]
+                        ]
+                    },
+                    parse_mode: 'HTML'
+                })
+            }
+        }).catch(err => console.log(err))
     }
     if (text === '📨 Yordam') {
         userStep.step = 1
@@ -572,7 +584,7 @@ bot.on('message', msg => {
                 remove_keyboard: true
             }
         })
-        bot.sendMessage(paymentChannelId, `💳 Kartaga pul yechish \n\n${msg.chat.first_name} \nKarta raqami: ${text} \nSumma: ${userStep.summa}`)
+        bot.sendMessage(paymentChannelId, `💳 Kartaga pul yechish \n\n${msg.chat.first_name} ${msg.chat.username ? '\n' + msg.chat.username : ''} \nKarta raqami: ${text} \nSumma: ${userStep.summa}`)
         setTimeout(() => {
             userStep.summa = 0
         }, 500)
